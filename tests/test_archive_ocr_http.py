@@ -19,6 +19,7 @@ def test_authenticated_http_reuses_page_without_launching_worker(tmp_path,monkey
     monkeypatch.setattr(service,'read_recovery_state',lambda:{})
     class FakeSession:
         calls=0
+        def note_request(self):pass
         def ocr(self,path,*,config=None):
             self.calls+=1
             assert config['backend']=='onnxruntime'

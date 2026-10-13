@@ -143,3 +143,7 @@ class PageCache:
             recent.append(item)
         return {'entries':entries,'compressed_bytes':size,'requests':counters,'recent':recent,
                 'limits':'Recent received page requests only; not the Paperless queue or full document coverage.'}
+
+    def maintain(self, *, max_bytes=512*1024*1024, ttl_days=30):
+        with self.connect() as db:
+            self.prune(db,max_bytes,ttl_days)

@@ -109,14 +109,14 @@ def paddle_model_fingerprint(config: dict) -> dict:
 def runtime_signature(config: dict) -> dict:
     """Cache invalidates on config, installed runtime, models or source changes."""
     packages = {}
-    for package in ['paddleocr', 'paddlex', 'paddlepaddle', 'onnxruntime', 'numpy', 'opencv-contrib-python']:
+    for package in ['paddleocr', 'paddlex', 'paddlepaddle', 'onnxruntime', 'ultra-infer-python', 'numpy', 'opencv-contrib-python']:
         try:
             packages[package] = version(package)
         except PackageNotFoundError:
             packages[package] = 'not-installed'
     sources = {name: file_digest(Path(__file__).with_name(name)) for name in ['ocr_runtime.py', 'service.py', 'ocr_page_cache.py']}
     return {'format': 1, 'runtime': packages, 'source': sources,
-            'models': MODELS if config.get('backend') == 'onnxruntime' else paddle_model_fingerprint(config),
+            'models': MODELS if config.get('backend') in ('onnxruntime','openvino') else paddle_model_fingerprint(config),
             'enable_hpi': os.getenv('OCR_ENABLE_HPI', 'false'),
             'thread_override': os.getenv('OCR_CPU_THREADS', ''),
             'ocr': {k: v for k, v in config.items() if not k.startswith('cache_')}}

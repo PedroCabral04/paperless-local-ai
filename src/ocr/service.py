@@ -539,6 +539,14 @@ class PaddleSession:
         # Internal worker-process liveness.
         return self._process is not None and self._process.is_alive()
 
+    def note_request(self) -> None:
+        """Keep lightweight HTTP alive without extending heavyweight model residency."""
+        with self._mutex:
+            if self._recycle_event.is_set():
+                raise RetryableOCRError('OCR service is recycling')
+            if not self.session_active:
+                self._container_idle_since = time.monotonic()
+
     @property
     def session_active(self) -> bool:
         # External session state follows ownership of the global AI slot.
@@ -912,7 +920,10 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._json(401, {'error': 'unauthorized'})
                 return
-            self._json(200, PageCache(CACHE_DIR).status())
+            cfg = load_app_config()['ocr']
+            cache = PageCache(CACHE_DIR)
+            cache.maintain(max_bytes=int(cfg.get('cache_max_mb',512))*1024*1024,ttl_days=int(cfg.get('cache_ttl_days',30)))
+            self._json(200, cache.status())
             return
         if self.path != "/health":
             self._json(404, {"error": "not_found"})
@@ -1032,6 +1043,7 @@ class Handler(BaseHTTPRequestHandler):
 
             consume_retry_now(request_id)
             page_cache = PageCache(CACHE_DIR)
+            page_cache.maintain(max_bytes=int(cfg.get('cache_max_mb',512))*1024*1024,ttl_days=int(cfg.get('cache_ttl_days',30)))
             source_group = hashlib.sha256(source.encode()).hexdigest()[:16]
             page_cache.request_started(observation_id, source_group, page_number)
             observed = True
@@ -1048,6 +1060,7 @@ class Handler(BaseHTTPRequestHandler):
             )
 
             try:
+                _session().note_request()
                 # Snapshot the effective runtime so a settings save cannot label
                 # inference with another configuration's cache key.
                 inference_cfg = {key:value for key,value in cfg.items() if not key.startswith('cache_')}
@@ -1093,7 +1106,7 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     LOG.warning(
                         "Transient OCR failure for %s page %s on attempt %d/%d; retry in %ds: %s",
-                        source,
+                        source_group,
                         page_number,
                         attempt,
                         max_attempts,
@@ -1137,7 +1150,7 @@ class Handler(BaseHTTPRequestHandler):
                         "failure_id": failure["id"],
                     }
                 )
-                LOG.error("OCR retries exhausted for %s page %s: %s", source, page_number, detail)
+                LOG.error('OCR retries exhausted: request=%s page=%s error_type=%s',observation_id,page_number,type(exc).__name__)
                 self._json(
                     500,
                     {
@@ -1173,7 +1186,7 @@ class Handler(BaseHTTPRequestHandler):
                         "failure_id": failure["id"],
                     }
                 )
-                LOG.exception("Non-retryable OCR request failed")
+                LOG.error('Non-retryable OCR request failed: request=%s error_type=%s',observation_id,type(exc).__name__)
                 self._json(500, {"error": "ocr_failed", "detail": detail})
                 return
 
@@ -1187,7 +1200,7 @@ class Handler(BaseHTTPRequestHandler):
                                  'warnings':payload['diagnostics']['warnings']}))
             self._json(200, payload)
         except Exception as exc:
-            LOG.exception("OCR request failed before inference")
+            LOG.error('OCR request failed: request=%s error_type=%s',observation_id,type(exc).__name__)
             self._json(500, {"error": "ocr_failed", "detail": f"{type(exc).__name__}: {exc}"})
         finally:
             if observed:

@@ -5,6 +5,7 @@ services:
     environment:
       PAPERLESS_OCR_MODE: redo
       PAPERLESS_OCR_LANGUAGE: por
+      PAPERLESS_OCR_LANGUAGES: por
       PAPERLESS_ARCHIVE_FILE_GENERATION: always
       PAPERLESS_WORKER_TIMEOUT: 21600
       PLAI_OCR_URL: http://ocr-service:8082

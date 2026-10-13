@@ -18,9 +18,10 @@ def main():
     if len(password)<12:ap.error('Password must contain at least 12 characters')
     if password!=getpass.getpass('Confirm password: '):ap.error('Passwords differ')
     run=subprocess.run(['docker','run','--rm','-i','caddy:2.11.4-alpine','caddy','hash-password'],
-                       input=password+'\n',capture_output=True,text=True,check=True)
-    digest=run.stdout.strip()
-    if not digest.startswith('$2'):raise RuntimeError('Caddy did not return a bcrypt hash')
+                       input=password.encode('utf8')+b'\n',capture_output=True,check=True)
+    digest=run.stdout.decode('utf8').strip()
+    if not re.fullmatch(r'\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}',digest):
+        raise RuntimeError('Caddy did not return a bcrypt hash')
     directory=args.data_dir/'secrets';directory.mkdir(parents=True,exist_ok=True,mode=0o700)
     path=directory/'plai-admin-auth'
     # Refuse accidental replacement. Rotation is an explicit operator action.

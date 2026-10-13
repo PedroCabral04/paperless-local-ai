@@ -46,9 +46,9 @@
     "src/core/review_store.py": "208c4ba12d25f4a53a4353d1c84ff086cf30752ee2007b4dc4b764527ae51e95",
     "src/core/suggestion_bridge.py": "12da9ef00a8951dc8708fadcb69a9d0fd7e1f474f280ec5ff7eeb2c2b2beba23",
     "src/core/worker.py": "b70a3d78ac8fe3652ce03aa4bc22b81915356aa693d55e1249b0d6abf9b5ef5e",
-    "src/ocr/compare_ocr.py": "91099ff771514e633eff24cb6a4dc2c54efaab95d13a7bd996e94609a1f12582",
-    "src/ocr/ocr_page_cache.py": "f4a0b1e42da6fc32ab6e27e3407b0f3002373fe914fc3b2260b03caa2c327b0a",
-    "src/ocr/ocr_runtime.py": "59b56535cc594a5fa279e217775491b2b1b4ab79aad930221fd5883d3cd1d089",
+    "src/ocr/compare_ocr.py": "38749a1de37a62576ac51f533581bf3b53495498e7afe0a077e7de4cabfc3761",
+    "src/ocr/ocr_page_cache.py": "2d0ce5f729fc66b5a4feed3b9a8a8ff6647555eb8469b85cab5a8d76f3c6b286",
+    "src/ocr/ocr_runtime.py": "807f6c66f392ca9968252b5ee3c7ace4406932ed45b24e3389dd9438490fd5ff",
     "src/ocr/ocrmypdf_plai.py": "c0b285fd5348c4e86a4e4d7a07801c75d7b98640b3ee0c8d57800dfe976c5843",
     "src/ocr/paddle_engine.py": "5829a8eafbcf28772ddaedfef11f249eaef62a717bf7121cb09b850b5caed435",
     "src/ocr/paperless_local_ai_ui/__init__.py": "af38528d3d4e1efa14f975a3a7f2c34ca28aacebe87167605740f002443d360d",
@@ -58,6 +58,6 @@
     "src/ocr/paperless_local_ai_ui/injection.py": "579547db49e9807cffa0eeeb372cbebd7c9cd11a7a21a92ded1880d3046a4bcc",
     "src/ocr/paperless_local_ai_ui/middleware.py": "95b97f12b6ec5223c43592525d17dffe56a762ab236a0645f4e2920452013893",
     "src/ocr/paperless_local_ai_ui/relay.py": "4d6b3fb59d9fc934867a7f4ed29cb5353907e30cddf00274c12e2014878f177a",
-    "src/ocr/service.py": "25f77c1bec9adf6712ec5be6fd187855314845897dc56c5851fd4f742455bf40"
+    "src/ocr/service.py": "88c9d1381dc099eb38a7ebb8a8e9f08236da69e84a3ed62c986f0133891ac238"
   }
 }

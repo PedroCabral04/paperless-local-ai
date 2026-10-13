@@ -21,3 +21,21 @@ def test_cache_signature_changes_with_recognition_settings_not_retention():
     a=runtime_signature({'backend':'onnxruntime','cpu_threads':2,'cache_ttl_days':30})
     assert a==runtime_signature({'backend':'onnxruntime','cpu_threads':2,'cache_ttl_days':60})
     assert a!=runtime_signature({'backend':'onnxruntime','cpu_threads':4,'cache_ttl_days':30})
+
+
+def test_native_model_artifact_change_invalidates_cache_signature(tmp_path, monkeypatch):
+    monkeypatch.setenv('PADDLE_PDX_CACHE_HOME', str(tmp_path))
+    model = tmp_path/'official_models'/'PP-OCRv6_medium_rec'
+    model.mkdir(parents=True)
+    weights = model/'inference.pdiparams'
+    weights.write_bytes(b'synthetic weights one')
+    config = {'backend':'paddle','version':'PP-OCRv6','model_profile':'medium'}
+    before = runtime_signature(config)
+    weights.write_bytes(b'synthetic weights changed')
+    assert runtime_signature(config) != before
+
+
+def test_comparison_signature_reports_effective_hpi_setting(monkeypatch):
+    from compare_ocr import comparison_signature
+    monkeypatch.setenv('OCR_ENABLE_HPI', 'true')
+    assert comparison_signature({'backend':'paddle'})['enable_hpi'] == 'false'

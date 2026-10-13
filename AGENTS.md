@@ -92,7 +92,7 @@ Current published OCR support is linux/amd64. Do not claim ARM64 until the Paddl
 - Never commit real tokens, `.env`, private document text, OCR dumps, private IP addresses or user-specific paths.
 - Tests, documentation and examples must use clearly synthetic fixtures. Never reuse names, organizations, addresses, document IDs, titles, excerpts or other values taken from a private Paperless archive.
 - Do not add telemetry or cloud dependencies by default.
-- The Control Center has no authentication; documentation must warn against public exposure.
+- The base Control Center has no authentication; documentation must warn against public exposure. The optional `compose.auth.yaml` proxy protects admin HTML/APIs and enforces the exact Origin on writes; preserve the independently authenticated Paperless RAG relay.
 - RAG document text may be returned only through the authenticated Paperless relay; do not expose RAG job/index endpoints or the relay secret to browser JavaScript.
 - The OCR service is token-authenticated but must still be documented as a private/LAN endpoint.
 - Preserve the original Paperless document; searchable OCR belongs in Paperless' archive/content path.

@@ -14,9 +14,18 @@ import time
 from pathlib import Path
 
 
+def comparison_signature(config: dict) -> dict:
+    from ocr_runtime import runtime_signature
+    signature = runtime_signature(config)
+    # Comparison selects each engine explicitly, independently of deployment HPI.
+    signature['enable_hpi'] = 'false'
+    signature['execution_backend'] = config['backend']
+    return signature
+
+
 def child(config_path: Path, output: Path):
     from paddleocr import PaddleOCR
-    from ocr_runtime import backend_options, file_digest
+    from ocr_runtime import backend_options, file_digest, resolve_onnx_models
     from service import _run_paddle
     config=json.loads(config_path.read_text())
     backend=config['backend']
@@ -24,9 +33,21 @@ def child(config_path: Path, output: Path):
     options={'device':'cpu','text_detection_model_name':f"PP-OCRv6_{config['model_profile']}_det",
              'text_recognition_model_name':f"PP-OCRv6_{config['model_profile']}_rec",
              'use_doc_orientation_classify':False,'use_doc_unwarping':False,'use_textline_orientation':False,
-             'cpu_threads':config['cpu_threads'],'enable_hpi':os.getenv('OCR_ENABLE_HPI','false').lower()=='true',
+             'cpu_threads':config['cpu_threads'],'enable_hpi':False,
              'enable_mkldnn':True}
-    options.update(backend_options(config,config['cpu_threads']))
+    if backend == 'openvino':
+        # Force the backend: do not label HPI auto-selection as OpenVINO.
+        options.update(resolve_onnx_models())
+        from paddlex.inference import load_pipeline_config
+        pipeline_config = load_pipeline_config('OCR')
+        for name in ('TextDetection', 'TextRecognition'):
+            pipeline_config['SubModules'][name].update(
+                engine='hpi',
+                engine_config={'hpi':{'backend':'openvino','auto_config':False,
+                               'backend_config':{'cpu_num_threads':config['cpu_threads']}}})
+        options.update(paddlex_config=pipeline_config, enable_mkldnn=False)
+    else:
+        options.update(backend_options(config,config['cpu_threads']))
     model=PaddleOCR(**options)
     load=time.monotonic()-started
     _run_paddle(Path(config['images'][0]),model,config['det_limit_side_len'])
@@ -49,7 +70,7 @@ def child(config_path: Path, output: Path):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--images',type=Path,nargs='+')
-    ap.add_argument('--backends',nargs='+',choices=['paddle','onnxruntime'],default=['paddle','onnxruntime'])
+    ap.add_argument('--backends',nargs='+',choices=['paddle','onnxruntime','openvino'],default=['paddle','onnxruntime'])
     ap.add_argument('--threads',type=int,default=4)
     ap.add_argument('--det-limit',type=int,default=2304)
     ap.add_argument('--repeats',type=int,default=3)
@@ -59,7 +80,12 @@ def main():
     args=ap.parse_args()
     if args.child_config:
         try:
-            child(args.child_config,args.out)
+            import fcntl
+            lock_path=Path(os.getenv('PLAI_AI_LOCK_FILE','/coordination/ai.lock'))
+            lock_path.parent.mkdir(parents=True,exist_ok=True)
+            with lock_path.open('a+b') as lock:
+                fcntl.flock(lock.fileno(),fcntl.LOCK_EX)
+                child(args.child_config,args.out)
         except Exception as error:
             args.out.write_text(json.dumps({'status':'failed','error_type':type(error).__name__}),encoding='utf8')
             raise SystemExit(1) from None
@@ -69,7 +95,6 @@ def main():
     for image in args.images:
         if not image.is_file():ap.error('Input image missing')
         if image.resolve()==args.out.resolve():ap.error('Output must not replace an input image')
-    from ocr_runtime import runtime_signature
     args.out.parent.mkdir(parents=True,exist_ok=True)
     results=[]
     with tempfile.TemporaryDirectory(prefix='plai-compare-') as tmp:
@@ -88,7 +113,7 @@ def main():
                 result={'status':'failed','error_type':'TimeoutError'}
             result['backend']=backend
             report.unlink(missing_ok=True)
-            result['runtime']=runtime_signature({k:v for k,v in cfg.items() if k not in ['images','include_text']})
+            result['runtime']=comparison_signature({k:v for k,v in cfg.items() if k not in ['images','include_text']})
             results.append(result)
     args.out.write_text(json.dumps({'results':results,'limits':'Selected images, warm inference only; no measured accuracy without human reference.'},indent=2),encoding='utf8')
     args.out.chmod(0o600)
