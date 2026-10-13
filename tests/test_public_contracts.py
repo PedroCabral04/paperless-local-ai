@@ -349,6 +349,7 @@ def test_tested_ocr_stack_is_pinned():
         "Pillow",
         "shapely",
         "pyclipper",
+        "onnxruntime",
     }
     pinned_packages = set()
     for line in lines:

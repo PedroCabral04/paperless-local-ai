@@ -20,6 +20,10 @@ def test_onnx_requires_validated_cpu_medium_profile():
             validate_config({'ocr': {**valid['ocr'], **patch}})
 
 
+def test_legacy_raster_limit_preserves_detector_limit():
+    assert validate_config({'ocr':{'max_side_pixels':3200}})['ocr']['det_limit_side_len']==3200
+
+
 @pytest.mark.parametrize('patch', [
     {'backend': 'unknown'}, {'cpu_threads': True}, {'cpu_threads': -1}, {'cpu_threads': 129},
     {'onnx_cpu_mem_arena': 'false'}, {'cache_enabled': 1}, {'cache_max_mb': 0},

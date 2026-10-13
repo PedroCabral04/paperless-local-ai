@@ -4,12 +4,12 @@
   "source_files": {
     "rust/core/build.rs": "0f3157e332b38b94b0be05928688cfecc40f182fda237c84e79c301be5f37f49",
     "rust/core/src/ai_lock.rs": "026918c29d5d1aaf766690c2d6559f4c795bd18cd24ba2d0f1ee9bb4b2e79f15",
-    "rust/core/src/app_config.rs": "a6517447fb018aa1b0f740afb9d62ddd2cb607613a48ada2e62a7048ec4305c6",
+    "rust/core/src/app_config.rs": "5c4017d91b762b22f3bd2e9817f10670557c6901b4d3aaebf15f886a20069e0b",
     "rust/core/src/assets.rs": "71c629b3f6cb21c49c3ecb64bf62bbc09cd4c1e8e54c8b4fcc0a432c6b4a2e4b",
     "rust/core/src/bin/plai-healthcheck.rs": "38cf5722ad306b2a775a320e32dca78bf3ba03ce0cfc93de1cf9a3d07180c7aa",
     "rust/core/src/bridge.rs": "bca5aa2aa79fd8c50538123ef5c44807f90ff7c8c24169077795461f54bcf536",
     "rust/core/src/chat_history.rs": "9524a551963aa219acd830795446d0527cf5009bd9999ff09cbe8b4b949038db",
-    "rust/core/src/control.rs": "e6e4339f45388cc562cebb62e91c21d735c8a77c6f8919c7c0995f975263af89",
+    "rust/core/src/control.rs": "bca6f528ff0150479746405d0f3d4f1927922bb6f82da999c2a632ff61326740",
     "rust/core/src/correspondent.rs": "28d8c32c5753c4697a053df71842b626cdb2c9b331f6aab0ad1bf6046ed61c9c",
     "rust/core/src/error.rs": "2da7179c4ef13ae34177ee2c11b42958f0401e9baf053c4ca02a1a51ec318b67",
     "rust/core/src/healthcheck_probe.rs": "7175c62c13b714f8d73d18ad3f33a8ddf811d82cd30e220fa57b48d44136cd02",
@@ -58,6 +58,6 @@
     "src/ocr/paperless_local_ai_ui/injection.py": "579547db49e9807cffa0eeeb372cbebd7c9cd11a7a21a92ded1880d3046a4bcc",
     "src/ocr/paperless_local_ai_ui/middleware.py": "95b97f12b6ec5223c43592525d17dffe56a762ab236a0645f4e2920452013893",
     "src/ocr/paperless_local_ai_ui/relay.py": "4d6b3fb59d9fc934867a7f4ed29cb5353907e30cddf00274c12e2014878f177a",
-    "src/ocr/service.py": "ffc46cd564a3c0995f55d5532a1187d7f6e6bc73559bf7be801795b0041634c9"
+    "src/ocr/service.py": "25f77c1bec9adf6712ec5be6fd187855314845897dc56c5851fd4f742455bf40"
   }
 }

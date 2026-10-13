@@ -1,5 +1,7 @@
 # Third-party licenses
 
+This fork additionally installs ONNX Runtime (MIT) for its explicit CPU backend. Optional administration proxy deployment uses the upstream Caddy image (Apache-2.0). Pinned PaddlePaddle ONNX weights retain their upstream model licenses; hashes/revisions are recorded in the runtime adapter.
+
 `paperless-local-ai` source code in this repository is licensed under the MIT License. That license does **not** replace the licenses of software installed into or used by the container images.
 
 The OCR image directly uses PaddlePaddle, PaddleOCR and PaddleX; PaddleOCR/PaddleX also require `requests`, which is explicitly pinned in the OCR image. The HPI CPU installation also brings in optimized inference/tooling dependencies selected by PaddleX, including OpenVINO/ONNX-related components. These projects and their transitive dependencies retain their respective upstream licenses and notices.

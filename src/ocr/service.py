@@ -1071,6 +1071,8 @@ class Handler(BaseHTTPRequestHandler):
                 if cached:
                     payload['performance']['original_inference_seconds'] = payload['performance'].get('inference_seconds')
                     payload['performance']['inference_seconds'] = 0.
+                    payload['performance']['lock_wait_seconds'] = 0.
+                    payload['performance']['warm_session'] = False
             except RetryableOCRError as exc:
                 detail = f"{type(exc).__name__}: {exc}"
                 if attempt <= len(retry_delays):
