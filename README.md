@@ -3,6 +3,8 @@
 
 # paperless-local-ai
 
+> **Archive OCR fork:** the `archive-ocr` branch adds ONNX CPU controls, persistent page caching and optional authenticated administration. See [installation and migration](docs/archive-ocr.md). Build this branch locally; upstream release images do not include these additions.
+
 **Local OCR, metadata automation and document chat for Paperless-ngx, designed for modest CPU-only hardware and direct control over local AI.**
 
 `paperless-local-ai` works alongside an existing Paperless-ngx installation. It improves scan OCR with PaddleOCR, classifies new documents with a local LLM, and adds persistent multi-turn document chat directly inside the Paperless interface.

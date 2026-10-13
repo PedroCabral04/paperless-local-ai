@@ -1,0 +1,16 @@
+# Merge into the EXISTING Paperless Compose project (not PLAI's compose.yaml).
+# Adapt the service name and integration path to your deployment.
+services:
+  paperless:
+    environment:
+      PAPERLESS_OCR_MODE: redo
+      PAPERLESS_OCR_LANGUAGE: por
+      PAPERLESS_OCR_LANGUAGES: por
+      PAPERLESS_ARCHIVE_FILE_GENERATION: always
+      PAPERLESS_WORKER_TIMEOUT: 21600
+      PLAI_OCR_URL: http://ocr-service:8082
+      PLAI_OCR_TOKEN: ${OCR_SERVICE_TOKEN:?set the same OCR service token}
+      PLAI_OCR_TIMEOUT_SECONDS: 1800
+      PAPERLESS_OCR_USER_ARGS: '{"plugins":["/opt/paperless-local-ai/ocrmypdf_plai.py"],"pdf_renderer":"fpdf2","optimize":0}'
+    volumes:
+      - ./data/integration:/opt/paperless-local-ai:ro

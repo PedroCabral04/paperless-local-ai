@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fcntl
 import hmac
+import hashlib
 import json
 import logging
 import math
@@ -22,6 +23,8 @@ from typing import Any
 from urllib.parse import unquote
 
 from app_config import OCR_MAX_SIDE_PIXELS_DEFAULT, load_config as load_app_config
+from ocr_runtime import backend_options, runtime_signature
+from ocr_page_cache import PageCache, diagnose
 from ocr_recovery_state import (
     consume_retry_now,
     iso_after_seconds,
@@ -61,6 +64,7 @@ CONTAINER_RECYCLE_IDLE_SECONDS = 300.0
 RESTART_POLICY_ARM_SECONDS = 11.0
 PAGE_TIMEOUT_SECONDS = float(os.getenv("OCR_PAGE_TIMEOUT_SECONDS", "1800"))
 TMP_DIR = Path(os.getenv("OCR_TMP_DIR", "/dev/shm/paperless-local-ai-ocr"))
+CACHE_DIR = Path(os.getenv('OCR_PAGE_CACHE_DIR', '/ocr-data/page-cache'))
 PP_OCRV6_MODEL_PROFILES = {
     "medium": ("PP-OCRv6_medium_det", "PP-OCRv6_medium_rec"),
     "small": ("PP-OCRv6_small_det", "PP-OCRv6_small_rec"),
@@ -429,7 +433,7 @@ def _engine_process(conn: Any, ocr_config: dict[str, Any]) -> None:
         max_side_pixels = int(ocr_config.get("max_side_pixels", OCR_MAX_SIDE_PIXELS_DEFAULT))
         device = ocr_config["device"]
         started = time.monotonic()
-        cpu_threads = _effective_cpu_threads()
+        cpu_threads = int(ocr_config.get('cpu_threads', 0)) or _effective_cpu_threads()
         enable_hpi = _env_bool("OCR_ENABLE_HPI", False)
         model_kwargs = {
             "device": device,
@@ -454,6 +458,7 @@ def _engine_process(conn: Any, ocr_config: dict[str, Any]) -> None:
             )
         else:
             model_kwargs.update(lang=language, ocr_version=version)
+        model_kwargs.update(backend_options(ocr_config, cpu_threads))
         model = PaddleOCR(**model_kwargs)
         conn.send(
             {
@@ -490,13 +495,14 @@ def _engine_process(conn: Any, ocr_config: dict[str, Any]) -> None:
         request_id = request["request_id"]
         image_path = Path(request["image_path"])
         try:
-            payload = _run_paddle(image_path, model, max_side_pixels)
+            payload = _run_paddle(image_path, model, int(ocr_config.get('det_limit_side_len', max_side_pixels)))
             payload.update(
                 {
                     "language": language,
                     "ocr_version": version,
                     "model_profile": effective_model_profile,
                     "device": device,
+                    "backend": ocr_config.get('backend', 'paddle'),
                 }
             )
             conn.send({"type": "result", "request_id": request_id, "payload": payload})
@@ -532,6 +538,14 @@ class PaddleSession:
     def active(self) -> bool:
         # Internal worker-process liveness.
         return self._process is not None and self._process.is_alive()
+
+    def note_request(self) -> None:
+        """Keep lightweight HTTP alive without extending heavyweight model residency."""
+        with self._mutex:
+            if self._recycle_event.is_set():
+                raise RetryableOCRError('OCR service is recycling')
+            if not self.session_active:
+                self._container_idle_since = time.monotonic()
 
     @property
     def session_active(self) -> bool:
@@ -582,19 +596,13 @@ class PaddleSession:
 
     def _current_ocr_config(self) -> dict[str, Any]:
         ocr = load_app_config()["ocr"]
-        return {
-            "language": str(ocr["language"]),
-            "version": str(ocr["version"]),
-            "model_profile": str(ocr.get("model_profile", "medium")),
-            "max_side_pixels": int(ocr.get("max_side_pixels", OCR_MAX_SIDE_PIXELS_DEFAULT)),
-            "device": str(ocr["device"]),
-        }
+        return {key: value for key, value in ocr.items() if not key.startswith('cache_')}
 
-    def _start(self) -> float:
+    def _start(self, config: dict | None = None) -> float:
         lock_wait = self._acquire_global_lock()
         parent_sock, child_sock = socket.socketpair()
         parent_conn = _JsonSocketConnection(parent_sock)
-        config = self._current_ocr_config()
+        config = config or self._current_ocr_config()
         engine_script = Path(__file__).with_name("paddle_engine.py")
         try:
             popen = subprocess.Popen(
@@ -698,14 +706,15 @@ class PaddleSession:
         self._stop(reason)
         raise RetryableOCRError(reason) from exc
 
-    def ocr(self, image_path: Path) -> dict[str, Any]:
+    def ocr(self, image_path: Path, *, config: dict | None = None) -> dict[str, Any]:
         with self._mutex:
             if self._recycle_event.is_set():
                 raise RetryableOCRError(
                     "OCR service is recycling after the extended idle period"
                 )
             self._container_idle_since = 0.0
-            config = self._current_ocr_config()
+            requested_config = config
+            config = config or self._current_ocr_config()
             lock_wait = 0.0
             started_new_session = False
 
@@ -717,7 +726,7 @@ class PaddleSession:
             if self.active and config != self._config:
                 self._stop("OCR configuration changed")
             if not self.active:
-                lock_wait = self._start()
+                lock_wait = self._start(config) if requested_config is not None else self._start()
                 started_new_session = True
 
             assert self._conn is not None
@@ -907,6 +916,15 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.path == '/v1/status':
+            if not self._authorized():
+                self._json(401, {'error': 'unauthorized'})
+                return
+            cfg = load_app_config()['ocr']
+            cache = PageCache(CACHE_DIR)
+            cache.maintain(max_bytes=int(cfg.get('cache_max_mb',512))*1024*1024,ttl_days=int(cfg.get('cache_ttl_days',30)))
+            self._json(200, cache.status())
+            return
         if self.path != "/health":
             self._json(404, {"error": "not_found"})
             return
@@ -939,6 +957,8 @@ class Handler(BaseHTTPRequestHandler):
                 "text_detection_model": detection_model,
                 "text_recognition_model": recognition_model,
                 "enable_hpi": _env_bool("OCR_ENABLE_HPI", False),
+                "backend": cfg.get('backend', 'paddle'),
+                "cache_enabled": cfg.get('cache_enabled', True),
             },
         )
 
@@ -974,6 +994,9 @@ class Handler(BaseHTTPRequestHandler):
             suffix = ".png"
 
         temp_path: Path | None = None
+        observation_id = uuid.uuid4().hex
+        observed = False
+        request_started_at = time.monotonic()
         try:
             with tempfile.NamedTemporaryFile(dir=TMP_DIR, suffix=suffix, delete=False) as tmp:
                 remaining = length
@@ -1019,6 +1042,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             consume_retry_now(request_id)
+            page_cache = PageCache(CACHE_DIR)
+            page_cache.maintain(max_bytes=int(cfg.get('cache_max_mb',512))*1024*1024,ttl_days=int(cfg.get('cache_ttl_days',30)))
+            source_group = hashlib.sha256(source.encode()).hexdigest()[:16]
+            page_cache.request_started(observation_id, source_group, page_number)
+            observed = True
             write_recovery_state(
                 {
                     "status": "running",
@@ -1032,7 +1060,32 @@ class Handler(BaseHTTPRequestHandler):
             )
 
             try:
-                payload = _session().ocr(temp_path)
+                _session().note_request()
+                # Snapshot the effective runtime so a settings save cannot label
+                # inference with another configuration's cache key.
+                inference_cfg = {key:value for key,value in cfg.items() if not key.startswith('cache_')}
+                inference_cfg['cpu_threads'] = int(cfg.get('cpu_threads',0)) or _effective_cpu_threads()
+                signature = runtime_signature(inference_cfg)
+                inference_cfg['_model_fingerprint'] = signature['models']
+                enabled = cfg.get('cache_enabled',True)
+                known_weights = inference_cfg.get('backend') == 'onnxruntime' or bool(signature['models'])
+                if enabled and known_weights:
+                    payload, cached, cache_key = page_cache.get_or_compute(
+                        temp_path, signature, lambda:_session().ocr(temp_path,config=inference_cfg),
+                        max_bytes=int(cfg.get('cache_max_mb',512))*1024*1024,
+                        ttl_days=int(cfg.get('cache_ttl_days',30)),
+                    )
+                else:
+                    payload = _session().ocr(temp_path,config=inference_cfg)
+                    cached, cache_key = False, None
+                payload['diagnostics'] = {'warnings':diagnose(payload),'advisory_only':True}
+                payload['cache'] = {'hit':cached,'key':cache_key,'eligible':enabled and known_weights}
+                payload.setdefault('performance',{})['request_seconds'] = round(time.monotonic()-request_started_at,3)
+                if cached:
+                    payload['performance']['original_inference_seconds'] = payload['performance'].get('inference_seconds')
+                    payload['performance']['inference_seconds'] = 0.
+                    payload['performance']['lock_wait_seconds'] = 0.
+                    payload['performance']['warm_session'] = False
             except RetryableOCRError as exc:
                 detail = f"{type(exc).__name__}: {exc}"
                 if attempt <= len(retry_delays):
@@ -1053,7 +1106,7 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     LOG.warning(
                         "Transient OCR failure for %s page %s on attempt %d/%d; retry in %ds: %s",
-                        source,
+                        source_group,
                         page_number,
                         attempt,
                         max_attempts,
@@ -1097,7 +1150,7 @@ class Handler(BaseHTTPRequestHandler):
                         "failure_id": failure["id"],
                     }
                 )
-                LOG.error("OCR retries exhausted for %s page %s: %s", source, page_number, detail)
+                LOG.error('OCR retries exhausted: request=%s page=%s error_type=%s',observation_id,page_number,type(exc).__name__)
                 self._json(
                     500,
                     {
@@ -1133,16 +1186,25 @@ class Handler(BaseHTTPRequestHandler):
                         "failure_id": failure["id"],
                     }
                 )
-                LOG.exception("Non-retryable OCR request failed")
+                LOG.error('Non-retryable OCR request failed: request=%s error_type=%s',observation_id,type(exc).__name__)
                 self._json(500, {"error": "ocr_failed", "detail": detail})
                 return
 
             set_idle_state()
+            page_cache.request_finished(observation_id,cached=cached,
+                                        elapsed_s=time.monotonic()-request_started_at,
+                                        warnings=payload['diagnostics']['warnings'])
+            observed = False
+            LOG.info(json.dumps({'event':'ocr_page_ready','request_id':observation_id,
+                                 'cache_hit':cached,'elapsed_s':round(time.monotonic()-request_started_at,3),
+                                 'warnings':payload['diagnostics']['warnings']}))
             self._json(200, payload)
         except Exception as exc:
-            LOG.exception("OCR request failed before inference")
+            LOG.error('OCR request failed: request=%s error_type=%s',observation_id,type(exc).__name__)
             self._json(500, {"error": "ocr_failed", "detail": f"{type(exc).__name__}: {exc}"})
         finally:
+            if observed:
+                page_cache.request_finished(observation_id,elapsed_s=time.monotonic()-request_started_at,error_type='OCRRequestFailed')
             if temp_path is not None:
                 temp_path.unlink(missing_ok=True)
 

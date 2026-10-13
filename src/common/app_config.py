@@ -52,6 +52,14 @@ DEFAULT_CONFIG = {
         "minimum_margin": CORRESPONDENT_MATCH_MARGIN_DEFAULT,
     },
     "ocr": {
+        "backend": "paddle",
+        "cpu_threads": 0,
+        "det_limit_side_len": 3000,
+        "onnx_cpu_mem_arena": False,
+        "onnx_mem_pattern": False,
+        "cache_enabled": True,
+        "cache_max_mb": 512,
+        "cache_ttl_days": 30,
         "language": "en",
         "version": "PP-OCRv6",
         "model_profile": "medium",
@@ -248,6 +256,17 @@ def validate_config(raw):
     )
 
     ocr = cfg["ocr"]
+    if 'det_limit_side_len' not in raw.get('ocr', {}):
+        ocr['det_limit_side_len'] = ocr['max_side_pixels']
+    if ocr['backend'] not in ('paddle', 'onnxruntime'):
+        raise ConfigError('ocr.backend must be paddle or onnxruntime')
+    ocr['cpu_threads'] = _positive_int(ocr['cpu_threads'], 'ocr.cpu_threads', 0, 128)
+    ocr['det_limit_side_len'] = _positive_int(ocr['det_limit_side_len'], 'ocr.det_limit_side_len', 960, 4000)
+    ocr['cache_max_mb'] = _positive_int(ocr['cache_max_mb'], 'ocr.cache_max_mb', 1, 102400)
+    ocr['cache_ttl_days'] = _positive_int(ocr['cache_ttl_days'], 'ocr.cache_ttl_days', 1, 3650)
+    for key in ('onnx_cpu_mem_arena', 'onnx_mem_pattern', 'cache_enabled'):
+        if not isinstance(ocr[key], bool):
+            raise ConfigError(f'ocr.{key} must be true or false')
     for key in ("language", "version", "model_profile", "device"):
         ocr[key] = _require_nonempty_string(ocr[key], f"ocr.{key}")
 
@@ -264,6 +283,11 @@ def validate_config(raw):
         raise ConfigError(
             "ocr.model_profile must be one of: " + ", ".join(OCR_MODEL_PROFILES)
         )
+
+    if ocr['backend'] == 'onnxruntime' and (
+        ocr['version'] != 'PP-OCRv6' or ocr['model_profile'] != 'medium' or ocr['device'] != 'cpu'
+    ):
+        raise ConfigError('ONNX currently requires PP-OCRv6 Medium on cpu')
 
     if (
         ocr["version"] == "PP-OCRv6"

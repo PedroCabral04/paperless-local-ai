@@ -6,3 +6,4 @@
 ocrmypdf==17.7.1
 
 pytest==9.1.1
+pypdf==6.10.0

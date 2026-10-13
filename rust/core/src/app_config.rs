@@ -78,6 +78,14 @@ impl CorrespondentMatchingConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OcrConfig {
+    pub backend: String,
+    pub cpu_threads: u32,
+    pub det_limit_side_len: u32,
+    pub onnx_cpu_mem_arena: bool,
+    pub onnx_mem_pattern: bool,
+    pub cache_enabled: bool,
+    pub cache_max_mb: u32,
+    pub cache_ttl_days: u32,
     pub language: String,
     pub version: String,
     pub model_profile: String,
@@ -134,6 +142,14 @@ impl Default for AppConfig {
             },
             correspondent_matching: CorrespondentMatchingConfig::default(),
             ocr: OcrConfig {
+                backend: "paddle".into(),
+                cpu_threads: 0,
+                det_limit_side_len: 3000,
+                onnx_cpu_mem_arena: false,
+                onnx_mem_pattern: false,
+                cache_enabled: true,
+                cache_max_mb: 512,
+                cache_ttl_days: 30,
                 language: "en".into(),
                 version: "PP-OCRv6".into(),
                 model_profile: "medium".into(),
@@ -224,6 +240,17 @@ impl AppConfig {
         if let Some(version) = raw.get("version") {
             merged.insert("version".into(), version.clone());
         }
+        if raw
+            .get("ocr")
+            .and_then(Value::as_object)
+            .is_none_or(|ocr| !ocr.contains_key("det_limit_side_len"))
+        {
+            let ocr = merged
+                .get_mut("ocr")
+                .and_then(Value::as_object_mut)
+                .expect("merged OCR config");
+            ocr.insert("det_limit_side_len".into(), ocr["max_side_pixels"].clone());
+        }
         if let Some(updated_at) = raw.get("updated_at") {
             merged.insert("updated_at".into(), updated_at.clone());
         }
@@ -297,6 +324,27 @@ impl AppConfig {
         self.ocr.model_profile =
             nonempty(&self.ocr.model_profile, "ocr.model_profile")?.to_lowercase();
         self.ocr.device = nonempty(&self.ocr.device, "ocr.device")?;
+        if !matches!(self.ocr.backend.as_str(), "paddle" | "onnxruntime") {
+            return Err(Error::Config(
+                "ocr.backend must be paddle or onnxruntime".into(),
+            ));
+        }
+        if self.ocr.cpu_threads > 128
+            || !(960..=4000).contains(&self.ocr.det_limit_side_len)
+            || !(1..=102400).contains(&self.ocr.cache_max_mb)
+            || !(1..=3650).contains(&self.ocr.cache_ttl_days)
+        {
+            return Err(Error::Config("Invalid OCR resource/cache limits".into()));
+        }
+        if self.ocr.backend == "onnxruntime"
+            && (self.ocr.version != "PP-OCRv6"
+                || self.ocr.model_profile != "medium"
+                || self.ocr.device != "cpu")
+        {
+            return Err(Error::Config(
+                "ONNX currently requires PP-OCRv6 Medium on cpu".into(),
+            ));
+        }
         if !OCR_MODEL_PROFILES.contains(&self.ocr.model_profile.as_str()) {
             return Err(Error::Config(format!(
                 "ocr.model_profile must be one of: {}",
@@ -617,6 +665,21 @@ fn civil_from_days(days_since_unix_epoch: i64) -> (i64, i64, i64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn archive_backend_options_and_legacy_detector_limit() {
+        let raw = serde_json::json!({"ocr": {"max_side_pixels": 3200}});
+        let cfg = AppConfig::from_value(&raw).unwrap();
+        assert_eq!(cfg.ocr.det_limit_side_len, 3200);
+        let raw = serde_json::json!({"ocr": {"backend": "onnxruntime", "cpu_threads": 4}});
+        let cfg = AppConfig::from_value(&raw).unwrap();
+        assert_eq!(cfg.ocr.backend, "onnxruntime");
+        assert!(!cfg.ocr.onnx_mem_pattern);
+        let invalid = serde_json::json!({"ocr": {"backend": "onnxruntime", "device": "gpu:0"}});
+        assert!(AppConfig::from_value(&invalid).is_err());
+        let invalid = serde_json::json!({"ocr": {"cache_enabled": "true"}});
+        assert!(AppConfig::from_value(&invalid).is_err());
+    }
 
     #[test]
     fn defaults_and_removed_ocr_keys_match_python_contract() {
