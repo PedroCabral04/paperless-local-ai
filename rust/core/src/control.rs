@@ -64,6 +64,7 @@ pub fn router(state: Arc<CoreState>) -> Router {
         .route("/api/app/history", get(app_history))
         .route("/api/app/ocr/recovery", get(ocr_recovery_state))
         .route("/api/app/ocr/health", get(ocr_health))
+        .route("/api/app/ocr/status", get(ocr_page_status))
         .route("/api/app/ocr/retry-now", post(ocr_retry_now))
         .route("/api/app/ocr/failures/dismiss", post(ocr_dismiss))
         .route("/api/app/validate", post(app_validate))
@@ -231,6 +232,17 @@ async fn ocr_health(State(state): State<Arc<CoreState>>) -> ApiResult {
         Err(error) => result["error"] = Value::String(format!("reqwest::Error: {error}")),
     }
     Ok(json_response(StatusCode::OK, result))
+}
+
+async fn ocr_page_status() -> ApiResult {
+    let token = std::env::var("OCR_SERVICE_TOKEN").map_err(|_| ApiError::bad("OCR service token is not configured on core-service"))?;
+    let base = std::env::var("OCR_SERVICE_INTERNAL_URL").unwrap_or_else(|_| "http://ocr-service:8082".into());
+    let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().map_err(ApiError::internal)?;
+    let response = client.get(format!("{}/v1/status", base.trim_end_matches('/')))
+        .bearer_auth(token).send().await.map_err(|_| ApiError::internal("OCR monitoring unavailable"))?
+        .error_for_status().map_err(|_| ApiError::internal("OCR monitoring unavailable"))?;
+    let value = response.json::<Value>().await.map_err(|_| ApiError::internal("Invalid OCR monitoring response"))?;
+    Ok(json_response(StatusCode::OK, value))
 }
 
 async fn ocr_retry_now(State(state): State<Arc<CoreState>>, body: Bytes) -> ApiResult {

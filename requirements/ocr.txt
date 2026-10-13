@@ -10,3 +10,4 @@ opencv-contrib-python==4.10.0.84
 Pillow==12.3.0
 shapely==2.1.2
 pyclipper==1.4.0
+onnxruntime==1.23.2

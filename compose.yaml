@@ -49,6 +49,7 @@ services:
     command: ["/usr/local/bin/plai-core"]
     environment:
       PAPERLESS_TOKEN: ${PAPERLESS_TOKEN:?set PAPERLESS_TOKEN in .env}
+      OCR_SERVICE_TOKEN: ${OCR_SERVICE_TOKEN:?set OCR_SERVICE_TOKEN in .env}
       PROMPT_UI_HOST: 0.0.0.0
       PROMPT_UI_PORT: "8080"
       SUGGESTION_BRIDGE_HOST: 0.0.0.0

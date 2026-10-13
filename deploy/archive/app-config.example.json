@@ -1,0 +1,18 @@
+{
+  "ocr": {
+    "language": "pt",
+    "version": "PP-OCRv6",
+    "model_profile": "medium",
+    "device": "cpu",
+    "backend": "onnxruntime",
+    "cpu_threads": 6,
+    "max_side_pixels": 3000,
+    "det_limit_side_len": 2304,
+    "onnx_cpu_mem_arena": false,
+    "onnx_mem_pattern": false,
+    "cache_enabled": true,
+    "cache_max_mb": 512,
+    "cache_ttl_days": 30,
+    "retry_delays_seconds": [15, 60, 300, 600]
+  }
+}

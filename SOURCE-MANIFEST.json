@@ -1,15 +1,15 @@
 {
   "version": "0.5.2",
-  "created": "2026-10-06",
+  "created": "2026-10-13",
   "source_files": {
     "rust/core/build.rs": "0f3157e332b38b94b0be05928688cfecc40f182fda237c84e79c301be5f37f49",
     "rust/core/src/ai_lock.rs": "026918c29d5d1aaf766690c2d6559f4c795bd18cd24ba2d0f1ee9bb4b2e79f15",
-    "rust/core/src/app_config.rs": "d6ad267f3823cbec2766d8f1e6b57aa011e3faf256039637a0cff282325a5ebc",
+    "rust/core/src/app_config.rs": "a6517447fb018aa1b0f740afb9d62ddd2cb607613a48ada2e62a7048ec4305c6",
     "rust/core/src/assets.rs": "71c629b3f6cb21c49c3ecb64bf62bbc09cd4c1e8e54c8b4fcc0a432c6b4a2e4b",
     "rust/core/src/bin/plai-healthcheck.rs": "38cf5722ad306b2a775a320e32dca78bf3ba03ce0cfc93de1cf9a3d07180c7aa",
     "rust/core/src/bridge.rs": "bca5aa2aa79fd8c50538123ef5c44807f90ff7c8c24169077795461f54bcf536",
     "rust/core/src/chat_history.rs": "9524a551963aa219acd830795446d0527cf5009bd9999ff09cbe8b4b949038db",
-    "rust/core/src/control.rs": "289a1bc77a52c9efbb5f7e8b455091ead389ba3d402a7279682682ad6995822c",
+    "rust/core/src/control.rs": "e6e4339f45388cc562cebb62e91c21d735c8a77c6f8919c7c0995f975263af89",
     "rust/core/src/correspondent.rs": "28d8c32c5753c4697a053df71842b626cdb2c9b331f6aab0ad1bf6046ed61c9c",
     "rust/core/src/error.rs": "2da7179c4ef13ae34177ee2c11b42958f0401e9baf053c4ca02a1a51ec318b67",
     "rust/core/src/healthcheck_probe.rs": "7175c62c13b714f8d73d18ad3f33a8ddf811d82cd30e220fa57b48d44136cd02",
@@ -28,7 +28,7 @@
     "rust/core/src/state.rs": "0318805325986957e39972e1e57d8bbede0b47b31f94993f52872ceff46be4b1",
     "rust/core/src/text.rs": "9c574b3951ee7d6395862c8ba0a47994aa5a26baaf9e4b40412eb2a2e4ea9106",
     "rust/core/src/worker.rs": "eff5c1363188e8c190883a2531709cb771e1ec6447124019c4ecd6dd14e67225",
-    "src/common/app_config.py": "64bdd86190e9ad6a8dcf8385ed30c7b72916d95772235306e4d4245f16a92b21",
+    "src/common/app_config.py": "0c2c675835f4977308283c932e2e83dc84a0f358feb23225bb4ddec04f439521",
     "src/common/memory_reclaim.py": "8f36b9eacb64f53b713243215441417877813b48cb21d06bbac0e84ff1572ebf",
     "src/common/ocr_recovery_state.py": "5c33f95580a269572a8baf9c4e2958c7e7d101faac41dd622a5030e55f46b433",
     "src/common/paperless_ui_state.py": "50dc1ddedd55814f3d9bfd7931cdecdc9ad4826806baf8cc617dfd215699444a",
@@ -41,11 +41,14 @@
     "src/core/history_engine.py": "5f6adcf959028dd9a233e03bca56c1fb475b8ef45c7593e13e3bec7a6079bd03",
     "src/core/history_runtime.py": "d89e5ee15e481dfa73e9cac412c61f88c6c6c8d8b0c2768c0bcec27e99c57aff",
     "src/core/prompt_runtime.py": "7470ed5481813902fe7cc23b385b479755e3d5eaab7ed51cde586898cce706ec",
-    "src/core/prompt_ui.py": "440c684948dd8c22d67c8b0757a1ae78af96f6fdd1284cdee7640f6bdefe1e64",
+    "src/core/prompt_ui.py": "6202b671ffe1c278d5eb9f4b5a58361d8a25536144916e457883e73f8c241ef5",
     "src/core/rag_engine.py": "dc2c2294233936db4909d714af086449f5f096c25373078b6ddc540a9257ade6",
     "src/core/review_store.py": "208c4ba12d25f4a53a4353d1c84ff086cf30752ee2007b4dc4b764527ae51e95",
     "src/core/suggestion_bridge.py": "12da9ef00a8951dc8708fadcb69a9d0fd7e1f474f280ec5ff7eeb2c2b2beba23",
     "src/core/worker.py": "b70a3d78ac8fe3652ce03aa4bc22b81915356aa693d55e1249b0d6abf9b5ef5e",
+    "src/ocr/compare_ocr.py": "91099ff771514e633eff24cb6a4dc2c54efaab95d13a7bd996e94609a1f12582",
+    "src/ocr/ocr_page_cache.py": "f4a0b1e42da6fc32ab6e27e3407b0f3002373fe914fc3b2260b03caa2c327b0a",
+    "src/ocr/ocr_runtime.py": "59b56535cc594a5fa279e217775491b2b1b4ab79aad930221fd5883d3cd1d089",
     "src/ocr/ocrmypdf_plai.py": "c0b285fd5348c4e86a4e4d7a07801c75d7b98640b3ee0c8d57800dfe976c5843",
     "src/ocr/paddle_engine.py": "5829a8eafbcf28772ddaedfef11f249eaef62a717bf7121cb09b850b5caed435",
     "src/ocr/paperless_local_ai_ui/__init__.py": "af38528d3d4e1efa14f975a3a7f2c34ca28aacebe87167605740f002443d360d",
@@ -55,6 +58,6 @@
     "src/ocr/paperless_local_ai_ui/injection.py": "579547db49e9807cffa0eeeb372cbebd7c9cd11a7a21a92ded1880d3046a4bcc",
     "src/ocr/paperless_local_ai_ui/middleware.py": "95b97f12b6ec5223c43592525d17dffe56a762ab236a0645f4e2920452013893",
     "src/ocr/paperless_local_ai_ui/relay.py": "4d6b3fb59d9fc934867a7f4ed29cb5353907e30cddf00274c12e2014878f177a",
-    "src/ocr/service.py": "c43b529c67e8f7005a1bc1f72f6ed20a3c7bf58cfde737a87515a145bc73a4e6"
+    "src/ocr/service.py": "ffc46cd564a3c0995f55d5532a1187d7f6e6bc73559bf7be801795b0041634c9"
   }
 }

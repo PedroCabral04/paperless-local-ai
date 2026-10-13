@@ -1,0 +1,26 @@
+{
+    admin off
+    auto_https off
+}
+
+:8080 {
+    header Cache-Control "no-store"
+    # The existing Paperless relay authenticates these routes with its own
+    # bearer secret. Do not break it by demanding browser Basic credentials.
+    handle /api/rag/* {
+        reverse_proxy core-service:8080
+    }
+    handle {
+        basic_auth {
+            import /run/secrets/plai-admin-auth
+        }
+        # Browsers automatically reuse Basic credentials: enforce the admin
+        # origin on writes to prevent cross-site requests changing settings.
+        @unsafe_write {
+            method POST PUT PATCH DELETE
+            not header Origin {$PLAI_ADMIN_ORIGIN}
+        }
+        respond @unsafe_write "Invalid administration origin" 403
+        reverse_proxy core-service:8080
+    }
+}

@@ -1,0 +1,20 @@
+# Optional infrastructure in front of the two PLAI application services.
+# Requires Docker Compose 2.24.4+ for !reset and a generated private auth file.
+services:
+  core-service:
+    ports: !reset []
+  admin-proxy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    depends_on: [core-service]
+    ports:
+      - "127.0.0.1:${PLAI_ADMIN_PORT:-30148}:8080"
+    environment:
+      PLAI_ADMIN_ORIGIN: ${PLAI_ADMIN_ORIGIN:-http://localhost:30148}
+    volumes:
+      - ./deploy/auth/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${APP_DATA_DIR:-./data}/secrets/plai-admin-auth:/run/secrets/plai-admin-auth:ro
+    read_only: true
+    tmpfs: [/config, /data, /tmp]
+    mem_limit: 128m
+    cpus: 0.25
