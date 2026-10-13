@@ -73,6 +73,18 @@ jobs:
           rustc +1.98.0             --edition=2024             --target x86_64-unknown-linux-musl             -C opt-level=s             -C strip=symbols             -C panic=abort             -C target-feature=+crt-static             -o /tmp/plai-healthcheck-musl             rust/core/src/bin/plai-healthcheck.rs
           file /tmp/plai-healthcheck-musl
           ldd /tmp/plai-healthcheck-musl 2>&1 | grep -Eq 'not a dynamic executable|statically linked'
+      - name: Build fork core for local integration validation
+        if: github.repository == 'PedroCabral04/paperless-local-ai'
+        run: |
+          cargo build --locked --release -p plai-core --bin plai-core --bin plai-healthcheck
+          tar -czf plai-core-archive.tar.gz -C target/release plai-core plai-healthcheck
+      - uses: actions/upload-artifact@v7
+        if: github.repository == 'PedroCabral04/paperless-local-ai'
+        with:
+          name: plai-core-archive
+          path: plai-core-archive.tar.gz
+          if-no-files-found: error
+          retention-days: 3
 
   compose:
     runs-on: ubuntu-latest
